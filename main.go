@@ -71,20 +71,22 @@ type discordEmbedField struct {
 }
 
 const defaultListenAddress = "127.0.0.1:9094"
+const cant int = 2
 
 var (
-	cant int = 2
-	whURL [cant]string
+	whURL         [cant]string
 	listenAddress = flag.String("listen.address", os.Getenv("LISTEN_ADDRESS"), "Address:Port to listen on.")
 )
 
-func setWhURL(whURL [cant]string) {
+func setWhURL(whURL *[cant]string) {
 	for f := 0; f < cant; f++ {
-		whURL[f]      = flag.String("webhook.url", os.Getenv(whname+f), "Discord WebHook URL+f")
+		whnamef := fmt.Sprintf("%s%d", whname, f)
+		flag := flag.String(fmt.Sprintf("%s%d", "webhook.url", f), os.Getenv(whnamef), "Discord WebHook URL+f")
+		whURL[f] = *flag
 	}
 }
 
-func checkWhURL(whURL [cant]string) {
+func checkWhURL(whURL *[cant]string) {
 	for f := 0; f < cant; f++ {
 		if whURL[f] == "" {
 			log.Fatalf("Environment variable 'DISCORD_WEBHOOK' or CLI parameter 'webhook.url' not found.")
@@ -174,14 +176,14 @@ func sendRawPromAlertWarn() {
 
 	DOD, _ := json.Marshal(DO)
 	for f := 0; f < cant; f++ {
-		http.Post(whURL *[f], "application/json", bytes.NewReader(DOD))
+		http.Post(whURL[f], "application/json", bytes.NewReader(DOD))
 	}
 }
 
 func main() {
 	flag.Parse()
-	setWhURL(whURL *[])
-	checkWhURL(whURL *[])
+	setWhURL(&whURL)
+	checkWhURL(&whURL)
 
 	if *listenAddress == "" {
 		*listenAddress = defaultListenAddress
