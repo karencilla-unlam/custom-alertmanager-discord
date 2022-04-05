@@ -21,6 +21,8 @@ const (
 	ColorGrey  = 0x95A5A6
 )
 
+const whname = "DISCORD_WEBHOOK"
+
 type alertManAlert struct {
 	Annotations struct {
 		Description string `json:"description"`
@@ -71,22 +73,31 @@ type discordEmbedField struct {
 const defaultListenAddress = "127.0.0.1:9094"
 
 var (
-	whURL         = flag.String("webhook.url", os.Getenv("DISCORD_WEBHOOK"), "Discord WebHook URL.")
+	cant int = 2
+	whURL [cant]string
 	listenAddress = flag.String("listen.address", os.Getenv("LISTEN_ADDRESS"), "Address:Port to listen on.")
 )
 
-func checkWhURL(whURL string) {
-	if whURL == "" {
-		log.Fatalf("Environment variable 'DISCORD_WEBHOOK' or CLI parameter 'webhook.url' not found.")
+func setWhURL(whURL [cant]string) {
+	for f := 0; f < cant; f++ {
+		whURL[f]      = flag.String("webhook.url", os.Getenv(whname+f), "Discord WebHook URL+f")
 	}
-	_, err := url.Parse(whURL)
-	if err != nil {
-		log.Fatalf("The Discord WebHook URL doesn't seem to be a valid URL.")
-	}
+}
 
-	re := regexp.MustCompile(`https://discord(?:app)?.com/api/webhooks/[0-9]{18}/[a-zA-Z0-9_-]+`)
-	if ok := re.Match([]byte(whURL)); !ok {
-		log.Printf("The Discord WebHook URL doesn't seem to be valid.")
+func checkWhURL(whURL [cant]string) {
+	for f := 0; f < cant; f++ {
+		if whURL[f] == "" {
+			log.Fatalf("Environment variable 'DISCORD_WEBHOOK' or CLI parameter 'webhook.url' not found.")
+		}
+		_, err := url.Parse(whURL[f])
+		if err != nil {
+			log.Fatalf("The Discord WebHook URL doesn't seem to be a valid URL.")
+		}
+
+		re := regexp.MustCompile(`https://discord(?:app)?.com/api/webhooks/[0-9]{18}/[a-zA-Z0-9_-]+`)
+		if ok := re.Match([]byte(whURL[f])); !ok {
+			log.Printf("The Discord WebHook URL doesn't seem to be valid.")
+		}
 	}
 }
 
@@ -132,7 +143,9 @@ func sendWebhook(amo *alertManOut) {
 		DO.Embeds = []discordEmbed{RichEmbed}
 
 		DOD, _ := json.Marshal(DO)
-		http.Post(*whURL, "application/json", bytes.NewReader(DOD))
+		for f := 0; f < cant; f++ {
+			http.Post(whURL[f], "application/json", bytes.NewReader(DOD))
+		}
 	}
 }
 
@@ -160,12 +173,15 @@ func sendRawPromAlertWarn() {
 	}
 
 	DOD, _ := json.Marshal(DO)
-	http.Post(*whURL, "application/json", bytes.NewReader(DOD))
+	for f := 0; f < cant; f++ {
+		http.Post(whURL *[f], "application/json", bytes.NewReader(DOD))
+	}
 }
 
 func main() {
 	flag.Parse()
-	checkWhURL(*whURL)
+	setWhURL(whURL *[])
+	checkWhURL(whURL *[])
 
 	if *listenAddress == "" {
 		*listenAddress = defaultListenAddress
