@@ -21,8 +21,6 @@ const (
 	ColorGrey  = 0x95A5A6
 )
 
-const whname = "DISCORD_WEBHOOK"
-
 type alertManAlert struct {
 	Annotations struct {
 		Description string `json:"description"`
@@ -71,33 +69,37 @@ type discordEmbedField struct {
 }
 
 const defaultListenAddress = "127.0.0.1:9094"
-const cant int = 2
+const whname = "DISCORD_WEBHOOK"
 
 var (
-	whURL         [cant]string
+	whURL []string
 	listenAddress = flag.String("listen.address", os.Getenv("LISTEN_ADDRESS"), "Address:Port to listen on.")
 )
 
-func setWhURL(whURL *[cant]string) {
-	for f := 0; f < cant; f++ {
-		whnamef := fmt.Sprintf("%s%d", whname, f)
-		flag := flag.String(fmt.Sprintf("%s%d", "webhook.url", f), os.Getenv(whnamef), "Discord WebHook URL+f")
-		whURL[f] = *flag
+func setWhURL(whURL *[]string) {
+	envs := os.Environ()
+
+	for i := 0; i < len(envs); i++ {
+		if strings.Index(envs[i], whname) == 0 {
+			fmt.Print("Dispatcher WebHook : ", envs[i], "\n")
+			url := strings.Split(envs[i], "=")[1]
+			*whURL = append(*whURL, url)
+		}
 	}
 }
 
-func checkWhURL(whURL *[cant]string) {
-	for f := 0; f < cant; f++ {
-		if whURL[f] == "" {
+func checkWhURL(whURL *[]string) {
+	for f := 0; f < len(*whURL); f++ {
+		if (*whURL)[f] == "" {
 			log.Fatalf("Environment variable 'DISCORD_WEBHOOK' or CLI parameter 'webhook.url' not found.")
 		}
-		_, err := url.Parse(whURL[f])
+		_, err := url.Parse((*whURL)[f])
 		if err != nil {
 			log.Fatalf("The Discord WebHook URL doesn't seem to be a valid URL.")
 		}
 
 		re := regexp.MustCompile(`https://discord(?:app)?.com/api/webhooks/[0-9]{18}/[a-zA-Z0-9_-]+`)
-		if ok := re.Match([]byte(whURL[f])); !ok {
+		if ok := re.Match([]byte((*whURL)[f])); !ok {
 			log.Printf("The Discord WebHook URL doesn't seem to be valid.")
 		}
 	}
@@ -145,8 +147,9 @@ func sendWebhook(amo *alertManOut) {
 		DO.Embeds = []discordEmbed{RichEmbed}
 
 		DOD, _ := json.Marshal(DO)
-		for f := 0; f < cant; f++ {
+		for f := 0; f < len(whURL); f++ {
 			http.Post(whURL[f], "application/json", bytes.NewReader(DOD))
+			fmt.Printf(">>> ", whURL[f])
 		}
 	}
 }
@@ -175,12 +178,14 @@ func sendRawPromAlertWarn() {
 	}
 
 	DOD, _ := json.Marshal(DO)
-	for f := 0; f < cant; f++ {
+	for f := 0; f < len(whURL); f++ {
 		http.Post(whURL[f], "application/json", bytes.NewReader(DOD))
+		fmt.Printf(">>> ", whURL[f])
 	}
 }
 
 func main() {
+
 	flag.Parse()
 	setWhURL(&whURL)
 	checkWhURL(&whURL)
